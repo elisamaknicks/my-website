@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elisama Knickerbocker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="colors_and_type.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--color-canvas);
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; }
+
+  /* Page transitions */
+  .page-enter { animation: fadeUp 0.35s ease both; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Responsive nav */
+  @media (max-width: 768px) {
+    .nav-links { display: none !important; }
+    .hero-grid { grid-template-columns: 1fr !important; }
+    .two-col { grid-template-columns: 1fr !important; }
+    .three-col { grid-template-columns: 1fr !important; }
+    .booking-grid { grid-template-columns: 1fr !important; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+
+
+
+
+
+
+
+
+
+
+
+
+
+const { useState, useEffect, useRef } = React;
+
+// ─── Design tokens ────────────────────────────────────────────────────────
+const C = {
+  canvas: 'var(--color-canvas)',
+  card: 'var(--color-surface-card)',
+  soft: 'var(--color-surface-soft)',
+  dark: 'var(--color-surface-dark)',
+  darkElevated: 'var(--color-surface-dark-elevated)',
+  primary: 'var(--color-primary)',
+  primaryAct: 'var(--color-primary-active)',
+  ink: 'var(--color-ink)',
+  body: 'var(--color-body)',
+  muted: 'var(--color-muted)',
+  mutedSoft: 'var(--color-muted-soft)',
+  onDark: 'var(--color-on-dark)',
+  onDarkSoft: 'var(--color-on-dark-soft)',
+  onPrimary: 'var(--color-on-primary)',
+  hairline: 'var(--color-hairline)',
+  teal: 'var(--color-accent-teal)',
+  amber: 'var(--color-accent-amber)'
+};
+
+// ─── i18n: language context + translation dictionary ─────────────────────
+const TRANSLATIONS_PT = {
+  'About': 'Sobre',
+  'Mentorship': 'Mentoria',
+  'Community': 'Comunidade',
+  'Book a call': 'Agendar',
+  'Work with me': 'Trabalhe comigo',
+  'Mentor, Speaker and Coach': 'Mentora, palestrante e coach',
+  'Grow with Purpose': 'Cresça com propósito',
+  'Explore mentorship': 'Explorar mentoria',
+  'Book a conversation': 'Agendar uma conversa',
+  'My career': 'Minha carreira',
+  'Elisama empowers professionals to turn challenges into growth and ambition into achievement. Through personalised mentorship and strategic guidance, she helps clients build confidence, resilience, and career clarity. Her mission is simple: help you thrive professionally and personally.':
+  'Elisama ajuda profissionais a transformar desafios em crescimento e ambição em conquistas. Por meio de mentoria personalizada e orientação estratégica, ela apoia seus clientes a desenvolverem confiança, resiliência e clareza de carreira. Sua missão é simples: ajudar você a prosperar profissionalmente e pessoalmente.',
+  '"No matter where you start or the path you take, your journey is shaped by your own determination. I\'m not here to carry you — I\'m here to guide you until you reach your destination."':
+  '"Não importa de onde você parte ou o caminho que percorre, sua jornada é moldada pela sua própria determinação. Não estou aqui para carregá-lo — estou aqui para guiá-lo até você chegar ao seu destino."',
+  'Elisama Knickerbocker': 'Elisama Knickerbocker',
+  'The journey': 'A jornada',
+  'My educational journey': 'Minha jornada educacional',
+  'My education': 'Minha formação',
+  'Started her career in strategy consulting, advising Fortune 500 leadership teams.':
+  'Iniciou sua carreira em consultoria de estratégia, assessorando equipes de liderança da Fortune 500.',
+  'Launched her first cohort-based mentoring program for early-career professionals.':
+  'Lançou seu primeiro programa de mentoria em coorte para profissionais em início de carreira.',
+  'Founded The Knickerbocker Circle, a curated network of 400+ ambitious practitioners.':
+  'Fundou o The Knickerbocker Circle, uma rede curada de mais de 400 profissionais ambiciosos.',
+  'Expanded her mentorship program to three continents, 600+ mentees served.':
+  'Expandiu seu programa de mentoria para três continentes, com mais de 600 mentorados.',
+  'Book a meeting': 'Agendar uma reunião',
+  'Start a conversation': 'Inicie uma conversa',
+  'Every engagement begins with a 30-minute discovery call. No agenda other than understanding where you are and where you want to go.':
+  'Toda parceria começa com uma conversa de descoberta de 30 minutos. Sem pauta — apenas para entender onde você está e onde quer chegar.',
+  'Your name *': 'Seu nome *',
+  'Full name': 'Nome completo',
+  'Email address *': 'Endereço de e-mail *',
+  'Company / organisation': 'Empresa / organização',
+  'Where do you work?': 'Onde você trabalha?',
+  'What brings you here?': 'O que te traz aqui?',
+  "Anything you'd like me to know?": 'Algo que eu deva saber?',
+  "Share some context — where you are, what you're working on, what you're hoping for...":
+  'Compartilhe um pouco do seu contexto — onde está, no que está trabalhando, o que espera...',
+  'Confirm booking': 'Confirmar agendamento',
+  'Choose a time': 'Escolha um horário',
+  'All times shown in your local timezone · 30 min': 'Todos os horários no seu fuso local · 30 min',
+  'What to expect': 'O que esperar',
+  "A relaxed, honest 30-minute call. Elisama will ask about your current situation, your goals, and whether working together makes sense. No pressure, no pitch.":
+  'Uma conversa tranquila e honesta de 30 minutos. Elisama vai perguntar sobre seu momento, seus objetivos e se faz sentido trabalharem juntos. Sem pressão, sem discurso de venda.',
+  'See you soon': 'Até breve',
+  'Book another time': 'Agendar outro horário',
+  'Required': 'Obrigatório',
+  'Valid email required': 'E-mail válido obrigatório',
+  'Please choose a time': 'Escolha um horário',
+  'Mentorship program': 'Programa de mentoria',
+  'Circle membership': 'Adesão ao círculo',
+  'Speaking engagement': 'Palestra',
+  'Advisory / consulting': 'Consultoria',
+  'Something else': 'Outro',
+  'Mentor, strategist, and community builder helping ambitious professionals grow with purpose.':
+  'Mentora, estrategista e construtora de comunidade que ajuda profissionais ambiciosos a crescerem com propósito.',
+  'My story': 'Minha história',
+  'Writing': 'Escritos',
+  'Speaking': 'Palestras',
+  '© 2026 Elisama Knickerbocker. All rights reserved.': '© 2026 Elisama Knickerbocker. Todos os direitos reservados.',
+  'Privacy': 'Privacidade',
+  'Contact': 'Contato'
+};
+
+const TRANSLATIONS = {
+  // Nav
+  'About': 'À propos',
+  'Mentorship': 'Mentorat',
+  'Community': 'Communauté',
+  'Book a call': 'Réserver',
+  'Work with me': 'Travailler avec moi',
+  // About hero
+  'Mentor, Speaker and Coach': 'Mentor, conférencière et coach',
+  'Grow with Purpose': 'Grandir avec intention',
+  'Explore mentorship': 'Découvrir le mentorat',
+  'Book a conversation': 'Réserver un échange',
+  'My career': 'Mon parcours',
+  // About bio
+  'Elisama empowers professionals to turn challenges into growth and ambition into achievement. Through personalised mentorship and strategic guidance, she helps clients build confidence, resilience, and career clarity. Her mission is simple: help you thrive professionally and personally.':
+  "Elisama aide les professionnels à transformer les défis en croissance et l'ambition en accomplissement. Par un mentorat personnalisé et un accompagnement stratégique, elle leur permet de gagner en confiance, en résilience et en clarté de carrière. Sa mission est simple : vous aider à vous épanouir, professionnellement et personnellement.",
+  // Pull quote
+  '"No matter where you start or the path you take, your journey is shaped by your own determination. I\'m not here to carry you — I\'m here to guide you until you reach your destination."':
+  "« Peu importe d'où vous partez ou le chemin que vous empruntez, votre parcours est façonné par votre propre détermination. Je ne suis pas là pour vous porter — je suis là pour vous guider jusqu'à votre destination. »",
+  'Elisama Knickerbocker': 'Elisama Knickerbocker',
+  // About timeline
+  'The journey': 'Le parcours',
+  'A decade of focused work': 'Une décennie de travail engagé',
+  'Started her career in strategy consulting, advising Fortune 500 leadership teams.':
+  "A débuté sa carrière dans le conseil en stratégie, auprès d'équipes dirigeantes du Fortune 500.",
+  'Launched her first cohort-based mentoring program for early-career professionals.':
+  'A lancé son premier programme de mentorat en cohorte pour jeunes professionnels.',
+  'Founded The Knickerbocker Circle, a curated network of 400+ ambitious practitioners.':
+  'A fondé The Knickerbocker Circle, un réseau de plus de 400 praticiens ambitieux.',
+  'Expanded her mentorship program to three continents, 600+ mentees served.':
+  "A étendu son programme de mentorat à trois continents, plus de 600 mentorés accompagnés.",
+  // Mentorship page
+  'The Mentorship Program': 'Le programme de mentorat',
+  'A 12-week journey designed to clarify your direction, sharpen your decisions, and build the career you actually want.':
+  'Un parcours de 12 semaines conçu pour clarifier votre direction, affiner vos décisions et construire la carrière que vous souhaitez vraiment.',
+  'Apply now': 'Postuler',
+  'What you will gain': 'Ce que vous y gagnerez',
+  'Outcomes by week 12': 'Résultats à la semaine 12',
+  'The 12-week journey': 'Le parcours de 12 semaines',
+  'Four phases. One transformation.': 'Quatre phases. Une transformation.',
+  'Discover': 'Découvrir',
+  'Design': 'Concevoir',
+  'Build': 'Construire',
+  'Launch': 'Lancer',
+  'Investment': 'Tarifs',
+  'Three ways to work together': 'Trois façons de collaborer',
+  'Foundational': 'Essentiel',
+  'Accelerator': 'Accélérateur',
+  'Executive': 'Exécutif',
+  'Most chosen': 'Le plus choisi',
+  // Community page
+  'The Knickerbocker Circle': 'The Knickerbocker Circle',
+  'A curated community of ambitious practitioners': 'Une communauté choisie de praticiens ambitieux',
+  'Join the Circle': 'Rejoindre le cercle',
+  'What members say': 'Ce que disent les membres',
+  'Members': 'Membres',
+  'Countries': 'Pays',
+  'Average tenure': 'Ancienneté moyenne',
+  'For individuals': 'Pour les particuliers',
+  'For teams': 'Pour les équipes',
+  // Booking page
+  'Book a meeting': 'Réserver une rencontre',
+  'Start a conversation': 'Démarrer une conversation',
+  'Every engagement begins with a 30-minute discovery call. No agenda other than understanding where you are and where you want to go.':
+  "Chaque collaboration commence par un appel découverte de 30 minutes. Pas d'autre programme que de comprendre où vous êtes et où vous voulez aller.",
+  'Your name *': 'Votre nom *',
+  'Full name': 'Nom complet',
+  'Email address *': 'Adresse e-mail *',
+  'Company / organisation': 'Entreprise / organisation',
+  'Where do you work?': 'Où travaillez-vous ?',
+  'What brings you here?': 'Qu\'est-ce qui vous amène ?',
+  'Anything you\'d like me to know?': 'Y a-t-il quelque chose à savoir ?',
+  "Share some context — where you are, what you're working on, what you're hoping for...":
+  "Partagez votre contexte — où vous en êtes, ce sur quoi vous travaillez, ce que vous espérez...",
+  'Confirm booking': 'Confirmer la réservation',
+  'Choose a time': 'Choisir un créneau',
+  'All times shown in your local timezone · 30 min': 'Tous les horaires sont affichés dans votre fuseau · 30 min',
+  'What to expect': 'À quoi vous attendre',
+  "A relaxed, honest 30-minute call. Elisama will ask about your current situation, your goals, and whether working together makes sense. No pressure, no pitch.":
+  "Un échange détendu et sincère de 30 minutes. Elisama vous posera des questions sur votre situation, vos objectifs, et la pertinence d'une collaboration. Sans pression, sans argumentaire.",
+  'See you soon': 'À très bientôt',
+  'Book another time': 'Réserver un autre créneau',
+  'Required': 'Obligatoire',
+  'Valid email required': 'E-mail valide requis',
+  'Please choose a time': 'Veuillez choisir un créneau',
+  'Mentorship program': 'Programme de mentorat',
+  'Circle membership': 'Adhésion au cercle',
+  'Speaking engagement': 'Conférence',
+  'Advisory / consulting': 'Conseil',
+  'Something else': 'Autre',
+  // Footer
+  'Mentor, strategist, and community builder helping ambitious professionals grow with purpose.':
+  'Mentor, stratège et bâtisseuse de communauté qui aide les professionnels ambitieux à grandir avec intention.',
+  'Work with me_footer': 'Travailler avec moi',
+  'My story': 'Mon histoire',
+  'Writing': 'Écrits',
+  'Speaking': 'Conférences',
+  '© 2026 Elisama Knickerbocker. All rights reserved.': '© 2026 Elisama Knickerbocker. Tous droits réservés.',
+  'Privacy': 'Confidentialité',
+  'Contact': 'Contact'
+};
+const LangContext = React.createContext({ lang: 'en', setLang: () => {} });
+const useLang = () => React.useContext(LangContext);
+const t = (en, lang) => {
+  if (lang === 'fr' && TRANSLATIONS[en] != null) return TRANSLATIONS[en];
+  if (lang === 'pt' && TRANSLATIONS_PT[en] != null) return TRANSLATIONS_PT[en];
+  return en;
+};
+
+// ─── Tweaks defaults ──────────────────────────────────────────────────────
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accentColor": "#cc785c",
+  "heroBadgeText": "Mentor, Speaker and Coach",
+  "heroTagline": "Grow with Purpose",
+  "ctaLabel": "Book a call",
+  "communityName": "The Knickerbocker Circle",
+  "showTestimonials": true
+} /*EDITMODE-END*/;
+
+// ─── Shared primitives ────────────────────────────────────────────────────
+const SpikeMark = ({ size = 16, color = C.ink }) =>
+<svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <line x1="12" y1="2" x2="12" y2="22" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+    <line x1="2" y1="12" x2="22" y2="12" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+    <line x1="19.07" y1="4.93" x2="4.93" y2="19.07" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+  </svg>;
+
+
+const PrimaryBtn = ({ children, onClick, style = {}, ghost = false, dark = false }) => {
+  const [hov, setHov] = useState(false);
+  const base = {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500, lineHeight: 1,
+    padding: '12px 24px', height: 44, borderRadius: 'var(--rounded-md)',
+    border: 'none', cursor: 'pointer', transition: 'background 150ms ease',
+    whiteSpace: 'nowrap', ...style
+  };
+  if (ghost && dark) return (
+    <button onClick={onClick}
+    onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+    style={{ ...base, background: hov ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.07)',
+      color: C.onDark, border: '1px solid rgba(255,255,255,0.18)' }}>
+      {children}
+    </button>);
+
+  if (ghost) return (
+    <button onClick={onClick}
+    onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+    style={{ ...base, background: hov ? C.card : 'transparent',
+      color: C.ink, border: `1px solid ${C.hairline}` }}>
+      {children}
+    </button>);
+
+  return (
+    <button onClick={onClick}
+    onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+    style={{ ...base, background: hov ? C.primaryAct : 'var(--accent-color, var(--color-primary))',
+      color: C.onPrimary }}>
+      {children}
+    </button>);
+
+};
+
+// Avatar — real photo
+const AvatarPlaceholder = ({ size = 320, style = {} }) =>
+<div style={{ width: size, height: size, borderRadius: 'var(--rounded-xl)',
+  overflow: 'hidden', flexShrink: 0, ...style }}>
+    <img src="uploads/photo-1777904612103.png" alt="Elisama Knickerbocker"
+  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+  </div>;
+
+
+// ─── Navigation ───────────────────────────────────────────────────────────
+const Nav = ({ page, setPage, tweaks, lang, setLang }) => {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const links = [
+  { id: 'about', label: t('About', lang) },
+  { id: 'booking', label: t('Book a call', lang), href: 'https://calendar.app.google/V8sdTno2tNr4ci7f8' }];
+
+
+  return (
+    <header style={{
+      position: 'sticky', top: 0, zIndex: 100,
+      background: C.canvas,
+      borderBottom: `1px solid ${scrolled ? C.hairline : 'transparent'}`,
+      height: 64, display: 'flex', alignItems: 'center',
+      padding: '0 40px', transition: 'border-color 200ms ease'
+    }}>
+      {/* Brand */}
+      <button onClick={() => setPage('about')} style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0
+      }}>
+        <img src="uploads/logo.jpeg" alt="Elisama Knicks logo"
+        style={{ width: 36, height: 36, borderRadius: 8, display: 'block', objectFit: 'cover' }} />
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 400,
+          color: C.ink, letterSpacing: '-0.3px' }}>Elisama Knickerbocker</span>
+      </button>
+
+      {/* Desktop nav */}
+      <nav className="nav-links" style={{ display: 'flex', gap: 24, marginLeft: 40, flex: 1 }}>
+        {links.map((l) =>
+        l.href ?
+        <a key={l.id} href={l.href} target="_blank" rel="noopener noreferrer" style={{
+          padding: '0 2px',
+          fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500,
+          color: C.muted, textDecoration: 'none', transition: 'color 150ms ease',
+          paddingBottom: 2
+        }}>{l.label}</a> :
+
+        <button key={l.id} onClick={() => setPage(l.id)} style={{
+          background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px',
+          fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500,
+          color: page === l.id ? 'var(--accent-color, var(--color-primary))' : C.muted,
+          transition: 'color 150ms ease',
+          borderBottom: page === l.id ? '2px solid var(--accent-color, var(--color-primary))' : '2px solid transparent',
+          paddingBottom: 2
+        }}>{l.label}</button>
+
+        )}
+      </nav>
+
+      {/* Language switcher + LinkedIn + CTA */}
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <a href="https://www.linkedin.com/in/elisamaknickerbocker/" target="_blank" rel="noopener noreferrer"
+        aria-label="LinkedIn" title="LinkedIn" style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: 32, height: 32, borderRadius: 8, color: C.muted,
+          transition: 'color 150ms ease, background 150ms ease'
+        }}
+        onMouseEnter={(e) => {e.currentTarget.style.color = C.onPrimary;e.currentTarget.style.background = 'var(--accent-color, var(--color-primary))';}}
+        onMouseLeave={(e) => {e.currentTarget.style.color = C.muted;e.currentTarget.style.background = 'transparent';}}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.38-1.85 3.61 0 4.28 2.37 4.28 5.46v6.28zM5.34 7.43a2.06 2.06 0 11-.01-4.12 2.06 2.06 0 01.01 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z" />
+          </svg>
+        </a>
+        <a href="https://www.instagram.com/elisamaknicks/" target="_blank" rel="noopener noreferrer"
+        aria-label="Instagram" title="Instagram" style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: 32, height: 32, borderRadius: 8, color: C.muted,
+          transition: 'color 150ms ease, background 150ms ease'
+        }}
+        onMouseEnter={(e) => {e.currentTarget.style.color = C.onPrimary;e.currentTarget.style.background = 'var(--accent-color, var(--color-primary))';}}
+        onMouseLeave={(e) => {e.currentTarget.style.color = C.muted;e.currentTarget.style.background = 'transparent';}}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+          </svg>
+        </a>
+        <div role="group" aria-label="Language" style={{
+          display: 'inline-flex', alignItems: 'center', padding: 3,
+          background: C.card, borderRadius: 999, border: `1px solid ${C.hairline}`
+        }}>
+          {['en', 'fr', 'pt'].map((code) =>
+          <button key={code} onClick={() => setLang(code)} style={{
+            appearance: 'none', border: 'none', cursor: 'pointer',
+            padding: '4px 11px', borderRadius: 999,
+            fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
+            letterSpacing: '0.5px',
+            background: lang === code ? 'var(--accent-color, var(--color-primary))' : 'transparent',
+            color: lang === code ? C.onPrimary : C.muted,
+            transition: 'background 150ms ease, color 150ms ease'
+          }}>{code.toUpperCase()}</button>
+          )}
+        </div>
+      </div>
+    </header>);
+
+};
+
+// ─── PAGE: About ──────────────────────────────────────────────────────────
+const AboutPage = ({ setPage, tweaks, lang }) => {
+  const values = [
+  { label: 'Clarity', body: 'Great thinking deserves clear expression. I help people cut through noise and articulate what matters.' },
+  { label: 'Intentionality', body: 'Every decision is an investment. I teach people to move deliberately, not reactively.' },
+  { label: 'Generosity', body: 'Knowledge grows when it is shared. The best networks are built on genuine exchange, not transactions.' }];
+
+
+  const milestones = [
+  { year: '2015', text: t('Started her career in strategy consulting, advising Fortune 500 leadership teams.', lang) },
+  { year: '2018', text: t('Launched her first cohort-based mentoring program for early-career professionals.', lang) },
+  { year: '2021', text: t('Founded The Knickerbocker Circle, a curated network of 400+ ambitious practitioners.', lang) },
+  { year: '2024', text: t('Expanded her mentorship program to three continents, 600+ mentees served.', lang) }];
+
+
+  return (
+    <div className="page-enter">
+      {/* Hero */}
+      <section style={{ padding: '80px 40px 96px', maxWidth: 1200, margin: '0 auto' }}>
+        <div className="hero-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 72, alignItems: 'center' }}>
+          {/* Left */}
+          <div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8,
+              background: C.card, borderRadius: 'var(--rounded-pill)',
+              padding: '5px 14px', marginBottom: 28 }}>
+              <SpikeMark size={11} color="var(--accent-color, var(--color-primary))" />
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500,
+                letterSpacing: '1.2px', textTransform: 'uppercase', color: C.muted }}>
+                {t(tweaks.heroBadgeText, lang)}
+              </span>
+            </div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(40px, 5vw, 64px)',
+              fontWeight: 400, lineHeight: 1.05, letterSpacing: '-1.5px', color: C.ink, marginBottom: 8 }}>
+              Elisama<br />Knickerbocker
+            </h1>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px, 2.5vw, 32px)',
+              fontWeight: 400, fontStyle: 'italic', color: 'var(--accent-color, var(--color-primary))',
+              letterSpacing: '-0.3px', marginBottom: 28, lineHeight: 1.2 }}>
+              {t(tweaks.heroTagline, lang)}
+            </p>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 17, lineHeight: 1.65,
+              color: C.body, maxWidth: 480, marginBottom: 36 }}>
+              {t('Elisama empowers professionals to turn challenges into growth and ambition into achievement. Through personalised mentorship and strategic guidance, she helps clients build confidence, resilience, and career clarity. Her mission is simple: help you thrive professionally and personally.', lang)}
+            </p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <PrimaryBtn onClick={() => window.open('https://www.linkedin.com/in/elisamaknickerbocker/', '_blank', 'noopener')}>{t('My career', lang)}</PrimaryBtn>
+              <PrimaryBtn onClick={() => window.open('https://calendar.app.google/V8sdTno2tNr4ci7f8', '_blank', 'noopener')} ghost>{t('Book a conversation', lang)}</PrimaryBtn>
+            </div>
+          </div>
+          {/* Right */}
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <AvatarPlaceholder size={380} />
+          </div>
+        </div>
+      </section>
+
+      {/* Pull quote */}
+      <section style={{ background: 'var(--accent-color, var(--color-primary))', padding: '72px 40px' }}>
+        <div style={{ maxWidth: 760, margin: '0 auto', textAlign: 'center' }}>
+          <p style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(24px, 3vw, 40px)',
+            fontWeight: 400, fontStyle: 'italic', lineHeight: 1.3, letterSpacing: '-0.5px',
+            color: C.onPrimary, marginBottom: 20 }}>
+            {t('"No matter where you start or the path you take, your journey is shaped by your own determination. I\'m not here to carry you — I\'m here to guide you until you reach your destination."', lang)}
+          </p>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500,
+            color: 'rgba(255,255,255,0.7)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+            Elisama Knickerbocker
+          </span>
+        </div>
+      </section>
+
+      {/* Education timeline */}
+      <section style={{ background: C.canvas, padding: '96px 40px' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <div style={{ maxWidth: 780, marginBottom: 48 }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(28px, 3vw, 40px)',
+              fontWeight: 400, letterSpacing: '-0.8px', color: C.ink, lineHeight: 1.15 }}>
+              My education
+            </h2>
+          </div>
+          <img src="uploads/education-timeline.png" alt="Elisama's educational journey from CNEC through to Universidade de Lisboa"
+          style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--rounded-lg)' }} />
+        </div>
+      </section>
+
+      {/* CTA band */}
+      <section style={{ padding: '96px 40px' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <div style={{ background: C.card, borderRadius: 'var(--rounded-lg)', padding: '64px 72px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexWrap: 'wrap', gap: 32 }}>
+            <div style={{ maxWidth: 520 }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(24px,2.5vw,36px)',
+                fontWeight: 400, letterSpacing: '-0.5px', color: C.ink, marginBottom: 12 }}>
+                Ready to grow with purpose?
+              </h2>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.55, color: C.body }}>
+                Book a discovery call to find out what's possible.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <PrimaryBtn onClick={() => window.open('https://calendar.app.google/V8sdTno2tNr4ci7f8', '_blank', 'noopener')}>Book a call</PrimaryBtn>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>);
+
+};
+
+// ─── Footer ───────────────────────────────────────────────────────────────
+const Footer = ({ setPage, lang }) =>
+<footer style={{ background: C.dark, padding: '64px 40px 48px' }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 40, marginBottom: 48 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 280 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img src="uploads/logo.jpeg" alt="Elisama Knicks logo"
+          style={{ width: 32, height: 32, borderRadius: 6, display: 'block', objectFit: 'cover' }} />
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 400,
+            color: C.onDark, letterSpacing: '-0.3px' }}>Elisama Knickerbocker</span>
+          </div>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: C.onDarkSoft, lineHeight: 1.65 }}>
+            {t('Mentor, strategist, and community builder helping ambitious professionals grow with purpose.', lang)}
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+          <a href="https://www.linkedin.com/in/elisamaknickerbocker/" target="_blank" rel="noopener noreferrer"
+          aria-label="LinkedIn" style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 36, height: 36, borderRadius: 8,
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+            color: C.onDark, transition: 'background 150ms ease'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-color, var(--color-primary))'}
+          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.38-1.85 3.61 0 4.28 2.37 4.28 5.46v6.28zM5.34 7.43a2.06 2.06 0 11-.01-4.12 2.06 2.06 0 01.01 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z" />
+            </svg>
+          </a>
+          <a href="https://www.instagram.com/elisamaknicks/" target="_blank" rel="noopener noreferrer"
+          aria-label="Instagram" style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 36, height: 36, borderRadius: 8,
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+            color: C.onDark, transition: 'background 150ms ease'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-color, var(--color-primary))'}
+          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+            </svg>
+          </a>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 48, flexWrap: 'wrap' }}>
+          {[
+        { heading: t('Work with me', lang), links: [
+          { label: t('Book a call', lang), href: 'https://calendar.app.google/V8sdTno2tNr4ci7f8' }]
+        },
+        { heading: t('About', lang), links: [
+          { label: t('My story', lang), page: 'about' },
+          { label: t('Writing', lang), page: 'about' },
+          { label: t('Speaking', lang), href: 'https://calendar.app.google/V8sdTno2tNr4ci7f8' }]
+        }].
+        map((col) =>
+        <div key={col.heading} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: C.onDark, marginBottom: 2 }}>{col.heading}</div>
+              {col.links.map((l) =>
+          l.href ?
+          <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" style={{
+            padding: 0, textAlign: 'left',
+            fontFamily: 'var(--font-sans)', fontSize: 13, color: C.onDarkSoft, textDecoration: 'none'
+          }}>{l.label}</a> :
+
+          <button key={l.label} onClick={() => setPage(l.page)} style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left',
+            fontFamily: 'var(--font-sans)', fontSize: 13, color: C.onDarkSoft
+          }}>{l.label}</button>
+
+          )}
+            </div>
+        )}
+        </div>
+      </div>
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 24,
+      display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: C.onDarkSoft }}>
+          {t('© 2026 Elisama Knickerbocker. All rights reserved.', lang)}
+        </span>
+        <div style={{ display: 'flex', gap: 20 }}>
+          {[t('Privacy', lang), t('Contact', lang)].map((l) =>
+        <span key={l} style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: C.onDarkSoft, cursor: 'pointer' }}>{l}</span>
+        )}
+        </div>
+      </div>
+    </div>
+  </footer>;
+
+
+// ─── App ──────────────────────────────────────────────────────────────────
+const App = () => {
+  const [page, setPage] = useState('about');
+  const [lang, setLang] = useState(() => {
+    try {return localStorage.getItem('elisama-lang') || 'en';} catch {return 'en';}
+  });
+  useEffect(() => {try {localStorage.setItem('elisama-lang', lang);} catch {}}, [lang]);
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  // Apply accent color as CSS variable
+  useEffect(() => {
+    document.documentElement.style.setProperty('--accent-color', tweaks.accentColor);
+  }, [tweaks.accentColor]);
+
+  // Scroll to top on page change
+  useEffect(() => {window.scrollTo({ top: 0, behavior: 'instant' });}, [page]);
+
+  return (
+    <>
+      <Nav page={page} setPage={setPage} tweaks={tweaks} lang={lang} setLang={setLang} />
+      <main key={page + '-' + lang}>
+        {page === 'about' && <AboutPage setPage={setPage} tweaks={tweaks} lang={lang} />}
+      </main>
+      <Footer setPage={setPage} lang={lang} />
+      <TweaksPanel>
+        <TweakSection label="Brand">
+          <TweakColor label="Accent color" value={tweaks.accentColor} onChange={(v) => setTweak('accentColor', v)} />
+        </TweakSection>
+        <TweakSection label="Content">
+          <TweakText label="Tagline" value={tweaks.heroTagline} onChange={(v) => setTweak('heroTagline', v)} />
+          <TweakText label="Hero badge" value={tweaks.heroBadgeText} onChange={(v) => setTweak('heroBadgeText', v)} />
+          <TweakText label="Nav CTA" value={tweaks.ctaLabel} onChange={(v) => setTweak('ctaLabel', v)} />
+          <TweakText label="Community name" value={tweaks.communityName} onChange={(v) => setTweak('communityName', v)} />
+        </TweakSection>
+        <TweakSection label="Sections">
+          <TweakToggle label="Show testimonials" value={tweaks.showTestimonials} onChange={(v) => setTweak('showTestimonials', v)} />
+        </TweakSection>
+      </TweaksPanel>
+    </>);
+
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

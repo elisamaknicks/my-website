@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elisama Knickerbocker — Motion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="animations.jsx"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root {
+    width: 100%; height: 100%;
+    background: #0a0a0a;
+    overflow: hidden;
+  }
+  body { position: fixed; inset: 0; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useMemo } = React;
+
+// ─── Full name and timing config ────────────────────────────────────────────
+const FULL_NAME    = 'Elisama Knickerbocker';
+const DURATION     = 8; // total seconds (loops)
+
+// Typography params
+const DISPLAY_FONT = "'Cormorant Garamond', Georgia, serif";
+const MONO_FONT    = "'JetBrains Mono', ui-monospace, monospace";
+const CANVAS_W     = 1280;
+const CANVAS_H     = 720;
+
+// Colors — Claude Design System palette
+const CREAM        = '#faf9f5';
+const CORAL        = '#cc785c';
+const INK          = '#141413';
+const MUTED        = '#6c6a64';
+const DARK         = '#181715';
+
+// ─── Timing map: each character gets a start time ─────────────────────────
+// The typing happens between t=0.8 and t=4.5 — roughly 3.7s for 21 chars
+// We add slight human variance to each keystroke interval
+const TYPE_START   = 0.9;   // cursor blinks before typing starts
+const TYPE_END     = 4.2;   // last char typed
+const HOLD_END     = 6.5;   // name holds fully visible
+const FADE_END     = 7.8;   // fade-out ends (just before loop)
+
+// Build per-character timestamps with slight jitter for realism
+function buildCharTimes(str, start, end) {
+  const n = str.length;
+  const baseInterval = (end - start) / n;
+  // Seed a deterministic pseudo-random so it's the same every loop
+  let seed = 42;
+  const rand = () => {
+    seed = (seed * 16807 + 0) % 2147483647;
+    return (seed - 1) / 2147483646;
+  };
+  const times = [];
+  let t = start;
+  for (let i = 0; i < n; i++) {
+    times.push(t);
+    // variance: ±30% of base interval; space chars slightly longer
+    const jitter = (rand() - 0.5) * 0.6 * baseInterval;
+    const spaceBonus = str[i] === ' ' ? baseInterval * 0.4 : 0;
+    t += baseInterval + jitter + spaceBonus;
+  }
+  return times;
+}
+
+const CHAR_TIMES = buildCharTimes(FULL_NAME, TYPE_START, TYPE_END);
+
+// ─── Main scene ────────────────────────────────────────────────────────────
+const Scene = () => {
+  const time = useTime();
+
+  // How many characters have been typed
+  const charsVisible = useMemo(() => {
+    let count = 0;
+    for (let i = 0; i < CHAR_TIMES.length; i++) {
+      if (time >= CHAR_TIMES[i]) count = i + 1;
+    }
+    return count;
+  }, [time]);
+
+  const typedText = FULL_NAME.slice(0, charsVisible);
+  const typingDone = charsVisible >= FULL_NAME.length;
+
+  // Overall opacity for the whole composition (fade in + fade out)
+  const masterOpacity = useMemo(() => {
+    if (time < 0.3) return animate({ from: 0, to: 1, start: 0, end: 0.3, ease: Easing.easeOutCubic })(time);
+    if (time > HOLD_END) return animate({ from: 1, to: 0, start: HOLD_END, end: FADE_END, ease: Easing.easeInCubic })(time);
+    return 1;
+  }, [time]);
+
+  // Cursor blink: fast while typing, slower when done
+  const blinkRate  = typingDone ? 1.1 : 0.55; // seconds per cycle
+  const cursorOn   = typingDone
+    ? (Math.floor(time / blinkRate) % 2 === 0)
+    : true; // always on while typing (cursor at current position)
+  const cursorVisible = time < HOLD_END - 0.2 && time > 0.2;
+
+  // Tagline fade-in: appears after name is fully typed
+  const taglineOpacity = useMemo(() => {
+    if (!typingDone) return 0;
+    return animate({ from: 0, to: 1, start: TYPE_END + 0.3, end: TYPE_END + 1.1, ease: Easing.easeOutCubic })(time);
+  }, [time, typingDone]);
+
+  // Decorative line: draws from center outwards after name appears
+  const lineProgress = useMemo(() => {
+    return animate({ from: 0, to: 1, start: TYPE_END + 0.1, end: TYPE_END + 0.8, ease: Easing.easeOutCubic })(time);
+  }, [time]);
+
+  // Spike mark: fades in with tagline
+  const spikeOpacity = useMemo(() => {
+    return animate({ from: 0, to: 0.7, start: TYPE_END + 0.5, end: TYPE_END + 1.2, ease: Easing.easeOutCubic })(time);
+  }, [time]);
+
+  // Subtle background texture pulse
+  const bgPulse = useMemo(() => {
+    return 0.015 * Math.sin(time * 0.7);
+  }, [time]);
+
+  // Update screen label for comments
+  const screenLabelTime = Math.floor(time);
+
+  return (
+    <div
+      data-screen-label={`t=${screenLabelTime}s`}
+      style={{
+        position: 'absolute', inset: 0,
+        background: DARK,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: masterOpacity,
+      }}
+    >
+      {/* Subtle warm radial glow behind the text */}
+      <div style={{
+        position: 'absolute',
+        width: 700, height: 360,
+        left: '50%', top: '50%',
+        transform: `translate(-50%, -50%) scale(${1 + bgPulse})`,
+        background: `radial-gradient(ellipse at center, rgba(204,120,92,0.08) 0%, transparent 70%)`,
+        pointerEvents: 'none',
+      }} />
+
+      {/* Main text block */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 0,
+        position: 'relative',
+      }}>
+
+        {/* Name line with cursor */}
+        <div style={{
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 0,
+        }}>
+          {/* The typed name */}
+          <span style={{
+            fontFamily: DISPLAY_FONT,
+            fontSize: 88,
+            fontWeight: 400,
+            letterSpacing: '-2px',
+            color: CREAM,
+            lineHeight: 1,
+            whiteSpace: 'pre',
+          }}>
+            {typedText}
+          </span>
+
+          {/* Blinking cursor */}
+          {cursorVisible && (
+            <span style={{
+              display: 'inline-block',
+              width: 3,
+              height: 74,
+              marginLeft: 3,
+              marginBottom: 2,
+              background: cursorOn ? CORAL : 'transparent',
+              borderRadius: 2,
+              verticalAlign: 'middle',
+              transition: 'background 60ms ease',
+              flexShrink: 0,
+            }} />
+          )}
+        </div>
+
+        {/* Decorative horizontal line */}
+        {lineProgress > 0 && (
+          <div style={{
+            position: 'relative',
+            width: 560,
+            height: 1,
+            marginTop: 20,
+            overflow: 'hidden',
+          }}>
+            {/* Left half */}
+            <div style={{
+              position: 'absolute',
+              right: '50%',
+              top: 0,
+              height: 1,
+              width: `${lineProgress * 50}%`,
+              background: `linear-gradient(to left, ${CORAL}, transparent)`,
+            }} />
+            {/* Right half */}
+            <div style={{
+              position: 'absolute',
+              left: '50%',
+              top: 0,
+              height: 1,
+              width: `${lineProgress * 50}%`,
+              background: `linear-gradient(to right, ${CORAL}, transparent)`,
+            }} />
+            {/* Center dot */}
+            <div style={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%,-50%)',
+              width: 5,
+              height: 5,
+              borderRadius: '50%',
+              background: CORAL,
+              opacity: lineProgress,
+            }} />
+          </div>
+        )}
+
+        {/* Tagline + spike mark */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          marginTop: 22,
+          opacity: taglineOpacity,
+        }}>
+          {/* Spike mark SVG */}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ opacity: spikeOpacity, flexShrink: 0, marginTop: 1 }}>
+            <line x1="12" y1="2" x2="12" y2="22" stroke={CORAL} strokeWidth="2.2" strokeLinecap="round"/>
+            <line x1="2" y1="12" x2="22" y2="12" stroke={CORAL} strokeWidth="2.2" strokeLinecap="round"/>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" stroke={CORAL} strokeWidth="2.2" strokeLinecap="round"/>
+            <line x1="19.07" y1="4.93" x2="4.93" y2="19.07" stroke={CORAL} strokeWidth="2.2" strokeLinecap="round"/>
+          </svg>
+          <span style={{
+            fontFamily: "'Inter', system-ui, sans-serif",
+            fontSize: 13,
+            fontWeight: 500,
+            letterSpacing: '3px',
+            textTransform: 'uppercase',
+            color: MUTED,
+          }}>
+            Mentor &nbsp;·&nbsp; Strategist &nbsp;·&nbsp; Community builder
+          </span>
+        </div>
+      </div>
+
+      {/* Skip button */}
+      <a href="Elisama Knickerbocker.html" style={{
+        position: 'absolute',
+        bottom: 28,
+        left: 36,
+        fontFamily: "'Inter', system-ui, sans-serif",
+        fontSize: 12,
+        fontWeight: 500,
+        letterSpacing: '1.5px',
+        textTransform: 'uppercase',
+        color: 'rgba(255,255,255,0.2)',
+        textDecoration: 'none',
+        transition: 'color 200ms ease',
+      }}
+      onMouseEnter={e => e.target.style.color = 'rgba(255,255,255,0.6)'}
+      onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.2)'}
+      >Skip →</a>
+      <div style={{
+        position: 'absolute',
+        bottom: 28,
+        right: 36,
+        fontFamily: MONO_FONT,
+        fontSize: 11,
+        color: 'rgba(255,255,255,0.12)',
+        letterSpacing: '0.05em',
+      }}>
+        {time.toFixed(2)}s
+      </div>
+    </div>
+  );
+};
+
+// ─── App ───────────────────────────────────────────────────────────────────
+const App = () => {
+  // Always start from t=0
+  useEffect(() => {
+    try { localStorage.removeItem('elisama-motion:t'); } catch {}
+  }, []);
+
+  // After animation completes, navigate to the main site
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.location.href = 'Elisama Knickerbocker.html';
+    }, DURATION * 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <Stage
+      width={CANVAS_W}
+      height={CANVAS_H}
+      duration={DURATION}
+      background={DARK}
+      loop={false}
+      autoplay={true}
+      persistKey="elisama-motion"
+    >
+      <Scene />
+    </Stage>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
